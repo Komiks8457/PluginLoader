@@ -27,10 +27,4 @@ set_target_properties(ploader
         OUTPUT_NAME "ploader"
 )
 
-add_custom_command(
-        TARGET ploader
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:ploader> H:\\LASTROGUE_120_dev\\UNPACK\\PluginLoader.dll
-)
-
 add_compile_options(/EHa) # enable C++ EH (w/ SEH exceptions)
