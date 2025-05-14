@@ -3,9 +3,9 @@ Plugin Library Loader
 
 What does PluginLoader do?
 * already contains the certification patch of each modules.
-* ability to also load your custom dll for each modules.
 * automatically load vanguard dll's if exists. (read REMINDER)
 * ability to hide/show vanguard console window.
+* ability to load your custom dll for each modules.
 
 Loading your custom dll:
 * Make a Plugin folder and place your dll, your dll name should be the same as your target module.
