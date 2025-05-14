@@ -1,5 +1,5 @@
 # PluginLoader - Designed for Silkroad Online Modules
-Plugin Library Loader
+Required: vc80 toolset (Visual Studio 2005 Pro)
 
 What does PluginLoader do?
 * already contains the certification patch of each modules.
