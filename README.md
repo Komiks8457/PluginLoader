@@ -24,6 +24,6 @@ Hide Console window of Vanguard
   ```
 
 REMINDER
+* In order to load Vanguard, the dll should be inside Vanguard folder together with its ini files.
 * Vanguard is attached to this modules (AgentServer, DownloadServer, GatewayServer, SR_GameServer, SR_ShardManager).
   if ever you have a custom hooks on these mentioned modules, ask bim first for the address you hooking to, if bim say's he is hooking on it then you should find another way to hook your own stuff. Avoid double hooking!
-* In order to load Vanguard, the dll should be inside Vanguard folder together with its ini files.
