@@ -1,4 +1,4 @@
-# PluginLoader
+# PluginLoader - Designed for Silkroad Online Modules
 Plugin Library Loader
 
 What does PluginLoader do?
