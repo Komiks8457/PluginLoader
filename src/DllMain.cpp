@@ -1,5 +1,5 @@
 #include <shlwapi.h>
-#pragma comment(lib, "shlwapi.lib") // Link with shlwapi.lib
+#pragma comment(lib, "shlwapi.lib")
 
 #include "../version/VersionInfo.h"
 #include "Memory/MemoryUtility.h"
@@ -11,17 +11,16 @@ DWORD g_AppProcessId;
 
 struct DllInfo
 {
-    std::wstring name;
-    bool operator<(const DllInfo& other) const { return name < other.name; }
+    std::wstring file;
+    std::wstring path;
+    bool operator<(const DllInfo& other) const { return file < other.file; }
 };
 
 bool FindPlugins(const std::wstring& directoryPath, std::vector<DllInfo>& dllList)
 {
     WIN32_FIND_DATAW findFileData;
     HANDLE hFind = INVALID_HANDLE_VALUE;
-
     std::wstring searchPattern = directoryPath + L"\\*.dll";
-
     hFind = FindFirstFileW(searchPattern.c_str(), &findFileData);
 
     if (hFind == INVALID_HANDLE_VALUE)
@@ -30,11 +29,15 @@ bool FindPlugins(const std::wstring& directoryPath, std::vector<DllInfo>& dllLis
         return false;
     }
 
+    std::wstring dirPath = directoryPath;
+    PathRemoveBackslashW(&dirPath[0]);
+
     do {
         if (!(findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
         {
             DllInfo dllInfo;
-            dllInfo.name = findFileData.cFileName;
+            dllInfo.path = dirPath;
+            dllInfo.file = findFileData.cFileName;
             std::vector<DllInfo>::iterator it = std::lower_bound(dllList.begin(), dllList.end(), dllInfo);
             dllList.insert(it, dllInfo);
         }
@@ -147,29 +150,31 @@ void LoadDLL(const std::string& dllDir, const char* moduleName, const char* titl
     if (dllList.empty())
         return;
 
-    for (std::vector<DllInfo>::iterator it = dllList.begin(); it != dllList.end(); ++it)
+    for (std::vector<DllInfo>::const_iterator it = dllList.begin(); it != dllList.end(); ++it)
     {
-        const std::string& file = TO_STRING(it->name);
+        char fullpath[MAX_PATH];
+        const std::string& path = TO_STRING(it->path);
+        const std::string& file = TO_STRING(it->file);
+
+        sprintf(fullpath, "%s\\%s", path.c_str(), file.c_str());
 
         if (!std::strchk(file).startwith(moduleName))
             continue;
 
-        LoadDLL(file.c_str(), title);
+        LoadDLL(fullpath, title);
     }
 }
 
 void APIENTRY LibraryLoader()
 {
     TCHAR szFullPath[MAX_PATH], szDriveLetter[MAX_PATH], szDirectory[MAX_PATH], szFileName[MAX_PATH],
-          szPluginDLL[MAX_PATH], szPluginDIR[MAX_PATH], szINI[MAX_PATH];
+          szPluginDIR[MAX_PATH], szINI[MAX_PATH];
 
     GetModuleFileName(NULL, szFullPath, MAX_PATH);
 
     _splitpath(szFullPath, szDriveLetter, szDirectory, szFileName, NULL);
 
     sprintf(szPluginDIR, "%s%sPlugins", szDriveLetter, szDirectory);
-
-    sprintf(szPluginDLL, "%s%sPlugins\\%s.dll", szDriveLetter, szDirectory, szFileName);
 
     if (std::strchk(szFullPath).endswith("agentserver.exe"))
     {
@@ -178,13 +183,15 @@ void APIENTRY LibraryLoader()
         CStaticPatches::AgentServerCertPatch();
 
         if (std::file(".\\Vanguard\\AgentServer.dll").exists())
+        {
             LoadDLL(".\\Vanguard\\AgentServer.dll", "Vanguard");
 
-        if (std::file(".\\Vanguard\\AgentServer.ini").exists())
-        {
-            std::inifile vg(".\\Vanguard\\AgentServer.ini");
-            const std::string &sc(vg.ReadString(szFileName, "HideConsole", "FALSE"));
-            HideVanguardConsole(std::strchk(sc).equal("true"));
+            if (std::file(".\\Vanguard\\AgentServer.ini").exists())
+            {
+                std::inifile vg(".\\Vanguard\\AgentServer.ini");
+                const std::string &sc(vg.ReadString(szFileName, "HideConsole", "FALSE"));
+                HideVanguardConsole(std::strchk(sc).equal("true"));
+            }
         }
 
         sprintf(szINI, "%s%sPlugins.ini", szDriveLetter, szDirectory);
@@ -197,29 +204,12 @@ void APIENTRY LibraryLoader()
 
             if (dllFile != "NULL" && std::file(dllFile).exists())
             {
-                std::vector<DllInfo> dllList;
-
                 size_t lastSeparator = dllFile.find_last_of("\\/");
 
-                if (lastSeparator != std::string::npos)
-                {
-                    const std::string& dllDir = dllFile.substr(0, lastSeparator);
+                if (lastSeparator == std::string::npos)
+                    return;
 
-                    FindPlugins(TO_WSTRING(dllDir), dllList);
-
-                    if (dllList.empty())
-                        return;
-
-                    for (std::vector<DllInfo>::iterator it = dllList.begin(); it != dllList.end(); ++it)
-                    {
-                        const std::string& file = TO_STRING(it->name);
-
-                        if (!std::strchk(file).startwith(szFileName))
-                            continue;
-
-                        LoadDLL(file.c_str(), "Plugin");
-                    }
-                }
+                LoadDLL(dllFile.substr(0, lastSeparator), szFileName, "Plugin");
             }
         }
         else LoadDLL(szPluginDIR, szFileName, "Plugin");
@@ -232,13 +222,15 @@ void APIENTRY LibraryLoader()
         CStaticPatches::DownloadServerCertPatch();
 
         if (std::file(".\\Vanguard\\DownloadServer.dll").exists())
+        {
             LoadDLL(".\\Vanguard\\DownloadServer.dll", "Vanguard");
 
-        if (std::file(".\\Vanguard\\DownloadServer.ini").exists())
-        {
-            std::inifile vg(".\\Vanguard\\DownloadServer.ini");
-            const std::string &sc(vg.ReadString(szFileName, "HideConsole", "FALSE"));
-            HideVanguardConsole(std::strchk(sc).equal("true"));
+            if (std::file(".\\Vanguard\\DownloadServer.ini").exists())
+            {
+                std::inifile vg(".\\Vanguard\\DownloadServer.ini");
+                const std::string &sc(vg.ReadString(szFileName, "HideConsole", "FALSE"));
+                HideVanguardConsole(std::strchk(sc).equal("true"));
+            }
         }
 
         LoadDLL(szPluginDIR, szFileName, "Plugin");
@@ -260,13 +252,15 @@ void APIENTRY LibraryLoader()
         CStaticPatches::GatewayServerCertPatch();
 
         if (std::file(".\\Vanguard\\GatewayServer.dll").exists())
+        {
             LoadDLL(".\\Vanguard\\GatewayServer.dll", "Vanguard");
 
-        if (std::file(".\\Vanguard\\GatewayServer.ini").exists())
-        {
-            std::inifile vg(".\\Vanguard\\GatewayServer.ini");
-            const std::string &sc(vg.ReadString(szFileName, "HideConsole", "FALSE"));
-            HideVanguardConsole(std::strchk(sc).equal("true"));
+            if (std::file(".\\Vanguard\\GatewayServer.ini").exists())
+            {
+                std::inifile vg(".\\Vanguard\\GatewayServer.ini");
+                const std::string &sc(vg.ReadString(szFileName, "HideConsole", "FALSE"));
+                HideVanguardConsole(std::strchk(sc).equal("true"));
+            }
         }
 
         LoadDLL(szPluginDIR, szFileName, "Plugin");
@@ -297,13 +291,15 @@ void APIENTRY LibraryLoader()
         CStaticPatches::GameServerCertPatch();
 
         if (std::file(".\\Vanguard\\GameServer.dll").exists())
+        {
             LoadDLL(".\\Vanguard\\GameServer.dll", "Vanguard");
 
-        if (std::file(".\\Vanguard\\GameServer.ini").exists())
-        {
-            std::inifile vg(".\\Vanguard\\GameServer.ini");
-            const std::string &sc(vg.ReadString(szFileName, "HideConsole", "FALSE"));
-            HideVanguardConsole(std::strchk(sc).equal("true"));
+            if (std::file(".\\Vanguard\\GameServer.ini").exists())
+            {
+                std::inifile vg(".\\Vanguard\\GameServer.ini");
+                const std::string &sc(vg.ReadString("GameServer", "HideConsole", "FALSE"));
+                HideVanguardConsole(std::strchk(sc).equal("true"));
+            }
         }
 
         sprintf(szINI, "%s%sPlugins.ini", szDriveLetter, szDirectory);
@@ -316,29 +312,12 @@ void APIENTRY LibraryLoader()
 
             if (dllFile != "NULL" && std::file(dllFile).exists())
             {
-                std::vector<DllInfo> dllList;
-
                 size_t lastSeparator = dllFile.find_last_of("\\/");
 
-                if (lastSeparator != std::string::npos)
-                {
-                    const std::string& dllDir = dllFile.substr(0, lastSeparator);
+                if (lastSeparator == std::string::npos)
+                    return;
 
-                    FindPlugins(TO_WSTRING(dllDir), dllList);
-
-                    if (dllList.empty())
-                        return;
-
-                    for (std::vector<DllInfo>::iterator it = dllList.begin(); it != dllList.end(); ++it)
-                    {
-                        const std::string& file = TO_STRING(it->name);
-
-                        if (!std::strchk(file).startwith(szFileName))
-                            continue;
-
-                        LoadDLL(file.c_str(), "Plugin");
-                    }
-                }
+                LoadDLL(dllFile.substr(0, lastSeparator), szFileName, "Plugin");
             }
         }
         else LoadDLL(szPluginDIR, szFileName, "Plugin");
@@ -351,13 +330,15 @@ void APIENTRY LibraryLoader()
         CStaticPatches::ShardManagerCertPatch();
 
         if (std::file(".\\Vanguard\\ShardManager.dll").exists())
+        {
             LoadDLL(".\\Vanguard\\ShardManager.dll", "Vanguard");
 
-        if (std::file(".\\Vanguard\\ShardManager.ini").exists())
-        {
-            std::inifile vg(".\\Vanguard\\ShardManager.ini");
-            const std::string &sc(vg.ReadString(szFileName, "HideConsole", "FALSE"));
-            HideVanguardConsole(std::strchk(sc).equal("true"));
+            if (std::file(".\\Vanguard\\ShardManager.ini").exists())
+            {
+                std::inifile vg(".\\Vanguard\\ShardManager.ini");
+                const std::string &sc(vg.ReadString("ShardManager", "HideConsole", "FALSE"));
+                HideVanguardConsole(std::strchk(sc).equal("true"));
+            }
         }
 
         LoadDLL(szPluginDIR, szFileName, "Plugin");
