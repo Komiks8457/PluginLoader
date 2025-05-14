@@ -10,7 +10,7 @@ What does PluginLoader do?
 Loading your custom dll:
 * Make a Plugin folder and place your dll, your dll name should be the same as your target module.
   E.g. MachineManager_patch1.dll, MachineManager_patch2.dll it will be loaded for MachineManager.exe or SR_GameServer.dll will be loaded for SR_GameServer.exe.
-  please note that dll will be load in alphabetical order, for example above MachineManager_patch1.dll will be loaded first.
+  ~(please note that dll will be load in alphabetical order, for example above MachineManager_patch1.dll will be loaded first.)~
 
 Hide Console window of Vanguard
 * Simply add HideConsole key with value TRUE or FALSE on each .ini of vanguard.
